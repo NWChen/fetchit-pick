@@ -18,6 +18,7 @@ from fetch_api import Arm
 
 from cv_bridge import CvBridge, CvBridgeError
 from geometry_msgs.msg import PoseStamped
+from moveit_python import PlanningSceneInterface
 from sensor_msgs.msg import Image, CameraInfo
 
 
@@ -133,17 +134,18 @@ class BoltPipeline(object):
         x = int(metadata[i_best][1] + roi_origin[0])
         y = int(metadata[i_best][0] + roi_origin[1])
         z = min(self.depth_img[x, y], K_TABLE_HEIGHT)
-        return (x, y, z)
+        angle = metadata[i_best][2]
+        return (x, y, z, angle)
 
     '''
-    does everything for you, gives you back (x, y, z) in image frame of best bolt candidate
+    runs whole pipeline:
+    gives you back (x, y, z, theta wrt horizontal) of best bolt candidate in image frame
     '''
     def get_bolt(self):
         hull, img = self.bin_contour()
         roi, roi_origin = self.bin_roi(hull, img)
         metadata = self.bolt_contours(roi)
         return self.get_bolt_position(metadata, roi_origin)
-
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Run bolt perception & grasping pipeline.')
@@ -157,7 +159,7 @@ if __name__=='__main__':
     time.sleep(2) # let TF buffer fill
     tfl = tf.TransformListener()
     rgb_img, depth_img = None, None
-    topics = ['/head_camera/rgb/image_raw', '/head_camera/depth_registered/image']#, '/head_camera/depth_registered/points']
+    topics = ['/head_camera/rgb/image_raw', '/head_camera/depth_registered/image'] #, '/head_camera/depth_registered/points']
 
     # process bagfile, if provided
     # start kludge
@@ -202,12 +204,31 @@ if __name__=='__main__':
     dst_frame = '/head_camera_rgb_optical_frame'
     pose = PoseStamped()
     pose.header.frame_id = dst_frame
-    pose.header.stamp = tfl.getLatestCommonTime(src_frame, dst_frame) #rospy.Time.now()
+    #pose.header.stamp = tfl.getLatestCommonTime(src_frame, dst_frame) #rospy.Time.now()
+    pose.header.stamp = rospy.Time.now()
     pose.pose.position.x = x
     pose.pose.position.y = y
     pose.pose.position.z = z if z<=1000.0 else z/1000.0 # max depth range 1 meter
+
+    # TODO include gripper rotation
     pose.pose.orientation.w = 1.0
     tfl.waitForTransform(camera.tfFrame(), src_frame, tfl.getLatestCommonTime(src_frame, dst_frame), rospy.Duration(5.0))
     pose = tfl.transformPose(src_frame, pose)
-    arm.move_to_pose(pose, execution_timeout=15.0, num_planning_attempts=5, replan_attempts=5)
+
+    # UNTESTED
+    yaw = 0 # TODO change based on bolt pose
+    q = tf.transformations.quaternion_from_euler(np.radians(180), 0, yaw)
+    pose.pose.orientation.x = q[0]
+    pose.pose.orientation.y = q[1]
+    pose.pose.orientation.z = q[2]
+    pose.pose.orientation.w = q[3]
+
+    # add objects to planning scene
+    planning_scene = PlanningSceneInterface('base_link')
+    planning_scene.clear()
+    xt, yt, zt = 1, 0, 0.5
+    planning_scene.addBox('table', 2, 1, 0.5, xt, yt, zt)
+
+    # assumes torso is already up (height=0.4)!
+    arm.move_to_pose(pose, replan=True, execution_timeout=15.0, num_planning_attempts=5, replan_attempts=5)
     print('Done.')
