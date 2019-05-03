@@ -38,25 +38,27 @@ class BoltController(object):
     def _update_depth(self, image):
         self.depth_image = image
 
-    def get_goal_pose(self):
-        x, y, z = self.pipeline.get_bolt()
+    # delta_vert in mm (+mm to go higher)
+    def transform(self, (x, y, z, theta), delta_vert=100): #get_goal_pose(self):
+        #x, y, z = self.pipeline.get_bolt()
         src_frame = '/base_link'
         dst_frame = self.camera.tfFrame()
         if 'head_camera_rgb_optical_frame' not in dst_frame:
             print('WARNING: destination frame is [%s]')
+        xp, yp, _ = self.camera.projectPixelTo3DRay((x, y))
 
         # pose in camera frame
+        latest_common_time = tfl.getLatestCommonTime(src_frame, dst_frame)
         pose = PoseStamped()
         pose.header.frame_id = dst_frame
-        pose.header.stamp = rospy.Time.now() # TODO check if this is the correct timestamp
-        pose.pose.position.x = x
-        pose.pose.position.y = y
+        pose.header.stamp = latest_common_time
+        pose.pose.position.x = xp
+        pose.pose.position.y = yp
         pose.pose.position.z = z if z<=2000.0 else z/1000.0 # max depth range 2 meter TODO make non-magic #
         pose.pose.orientation.w = 1.0
 
         # transform target point to base frame
-        latest_common_time = tfl.getLatestCommonTime(src_frame, dst_frame)
-        self.tfl.waitForTransform(dst_frame, src_frame, rospy.Duration(5.0))
+        self.tfl.waitForTransform(dst_frame, src_frame, latest_common_time, rospy.Duration(5.0))
         target = self.tfl.transformPose(src_frame, pose)
 
         # adjust end-effector for top-down grasp
@@ -66,6 +68,7 @@ class BoltController(object):
         target.pose.orientation.y = quat[1]
         target.pose.orientation.z = quat[2]
         target.pose.orientation.w = quat[3]
+        target.pose.position.z += delta_vert
 
         return target
 
@@ -81,14 +84,17 @@ if __name__=='__main__':
     controller = BoltController() 
     print('Successfully started bolt-grasp controller.')
 
-    target = controller.get_goal_pose()
+    #target = controller.get_goal_pose()
+    x, y, z = controller.pipeline.get_bolt()
+    print('Found x:%d, y:%d, z:%d' % (x, y, z))
+    target = controller.transform((x, y, z, _))
     print('Target pose:', target)
 
     # TODO pass these in more gracefully
     print('MAKE SURE ARM ENV IS CLEAR, THEN PRESS ANY KEY TO CONTINUE.')
     _ = input()
     for i in range(5):
-        print('executing in %d', i)
+        print('executing in %d' % i)
         time.sleep(1)
 
     arm.move_to_pose(target, replan=True, execution_timeout=15.0, num_planning_attempts=5, replan_attempts=5)
