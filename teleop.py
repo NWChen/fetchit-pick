@@ -21,7 +21,7 @@ def move_head(pan, tilt):
     global head_pan, head_tilt
     head_pan += pan
     head_tilt += tilt
-    head.pan_tilt(pan, tilt)
+    head.pan_tilt(head_pan, head_tilt)
 
 if __name__ == '__main__':
     base, torso, arm, gripper, head = Base(), Torso(), Arm(), Gripper(), Head()
@@ -38,10 +38,10 @@ if __name__ == '__main__':
         'g': ('Torso', lambda dist: move_torso(-dist)),
 
         # Head
-        'q': ('Head', lambda pan: move_head(-pan, 0)),
-        'e': ('Head', lambda pan: move_head(pan, 0)),
-        'r': ('Head', lambda tilt: move_head(0, -tilt)),
-        'f': ('Head', lambda tilt: move_head(0, tilt)),
+        'q': ('Head', lambda pan: move_head(-2*pan, 0)),
+        'e': ('Head', lambda pan: move_head(2*pan, 0)),
+        'r': ('Head', lambda tilt: move_head(0, -2*tilt)),
+        'f': ('Head', lambda tilt: move_head(0, 2*tilt)),
         
     }
 

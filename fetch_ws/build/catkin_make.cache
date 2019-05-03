@@ -1,0 +1,2 @@
+
+-DCATKIN_DEVEL_PREFIX=/home/fetch/fetchit/fetch_ws/devel -DCMAKE_INSTALL_PREFIX=/home/fetch/fetchit/fetch_ws/install -G Unix Makefiles
