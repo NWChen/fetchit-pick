@@ -1,4 +1,5 @@
 import argparse
+import numpy as np
 import time
 import tf
 import rospy
@@ -12,7 +13,7 @@ from sensor_msgs.msg import Image, CameraInfo
 
 class BoltController(object):
 
-    def __init__(self):
+    def __init__(self, imaging=True):
         rospy.init_node(self.__class__.__name__)
         while not rospy.Time.now():
             pass
@@ -22,11 +23,12 @@ class BoltController(object):
         self.tfl = tf.TransformListener()
 
         # image processing objects, updated over time
-        self.rgb_image, self.depth_image, self.pipeline = None, None, None # these will be initialized later
-        self.rgb_sub = rospy.Subscriber(topics[0], Image, self._update_rgb)
-        self.depth_sub = rospy.Subscriber(topics[1], Image, self._update_depth)
-        time.sleep(2) # let image buffer fill TODO shorten this delay
-        self.pipeline = BoltPipeline(self.rgb_image, self.depth_image)
+        if imaging:
+            self.rgb_image, self.depth_image, self.pipeline = None, None, None # these will be initialized later
+            self.rgb_sub = rospy.Subscriber(topics[0], Image, self._update_rgb)
+            self.depth_sub = rospy.Subscriber(topics[1], Image, self._update_depth)
+            time.sleep(2) # let image buffer fill TODO shorten this delay
+            self.pipeline = BoltPipeline(self.rgb_image, self.depth_image)
 
         # setup image frame -> camera frame transformer
         self.camera = PinholeCameraModel()
@@ -45,16 +47,17 @@ class BoltController(object):
         dst_frame = self.camera.tfFrame()
         if 'head_camera_rgb_optical_frame' not in dst_frame:
             print('WARNING: destination frame is [%s]')
-        xp, yp, _ = self.camera.projectPixelTo3DRay((x, y))
+        xp, yp, _ = self.camera.projectPixelTo3dRay((x, y))
+        zp = z/1000.0
 
         # pose in camera frame
-        latest_common_time = tfl.getLatestCommonTime(src_frame, dst_frame)
+        latest_common_time = self.tfl.getLatestCommonTime(src_frame, dst_frame)
         pose = PoseStamped()
         pose.header.frame_id = dst_frame
         pose.header.stamp = latest_common_time
         pose.pose.position.x = xp
         pose.pose.position.y = yp
-        pose.pose.position.z = z if z<=2000.0 else z/1000.0 # max depth range 2 meter TODO make non-magic #
+        pose.pose.position.z = zp
         pose.pose.orientation.w = 1.0
 
         # transform target point to base frame
@@ -68,7 +71,7 @@ class BoltController(object):
         target.pose.orientation.y = quat[1]
         target.pose.orientation.z = quat[2]
         target.pose.orientation.w = quat[3]
-        target.pose.position.z += delta_vert
+        target.pose.position.z += delta_vert/1000.0
 
         return target
 
@@ -98,4 +101,4 @@ if __name__=='__main__':
         time.sleep(1)
 
     arm.move_to_pose(target, replan=True, execution_timeout=15.0, num_planning_attempts=5, replan_attempts=5)
-    print('Done.')
+    pprojectpixelto3drayrint('Done.')
