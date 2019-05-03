@@ -4,3 +4,5 @@
 
 ref/
 venv/
+fetch_ws/devel
+fetch_ws/build
