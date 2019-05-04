@@ -1,3 +1,4 @@
+- [notes](https://docs.google.com/document/d/1Lhe8Ga1rB9UmmZB_pqmgnrm6w_qL-LmafI-HIMeAga8/edit?usp=sharing)
 - [rosbags](https://drive.google.com/drive/folders/1IbDaTr-j35DOhnGjg2H56KRwmrLkEzyI)
 - [environment images](https://github.com/fetchrobotics/fetch_gazebo/issues/73)
 - [object images](https://github.com/fetchrobotics/fetch_gazebo/issues/74)
