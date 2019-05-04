@@ -77,6 +77,11 @@ class BoltController(object):
 
 
 if __name__=='__main__':
+    scene = PlanningSceneInterface()
+    TABLE_HEIGHT = 0.7
+    size_x, size_y = 1.0, 2.0
+    pos_x, pos_y, pos_z = 1.0, 0.0, TABLE_HEIGHT/2.0
+    scene.addBox('table', size_x, size_y, TABLE_HEIGHT, pos_x, pos_y, pos_z)
 
     print('Setting up Fetch...')
     arm, head, torso = Arm(), Head(), Torso()
@@ -97,8 +102,8 @@ if __name__=='__main__':
     print('MAKE SURE ARM ENV IS CLEAR, THEN PRESS ANY KEY TO CONTINUE.')
     _ = input()
     for i in range(5):
-        print('executing in %d' % i)
+        print('RUNNING IN %d' % i)
         time.sleep(1)
 
     arm.move_to_pose(target, replan=True, execution_timeout=15.0, num_planning_attempts=5, replan_attempts=5)
-    pprojectpixelto3drayrint('Done.')
+    print('Done.')
