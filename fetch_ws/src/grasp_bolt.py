@@ -13,7 +13,7 @@ from sensor_msgs.msg import Image, CameraInfo
 
 class BoltController(object):
 
-    def __init__(self, imaging=True):
+    def __init__(self, camera_topic='/head_camera/depth/camera_info', imaging=True):
         rospy.init_node(self.__class__.__name__)
         while not rospy.Time.now():
             pass
@@ -31,8 +31,9 @@ class BoltController(object):
             self.pipeline = BoltPipeline(self.rgb_image, self.depth_image)
 
         # setup image frame -> camera frame transformer
+        print('Using camera topic: %s' % camera_topic)
         self.camera = PinholeCameraModel()
-        self.camera.fromCameraInfo(rospy.wait_for_message('/head_camera/rgb/camera_info', CameraInfo))
+        self.camera.fromCameraInfo(rospy.wait_for_message(camera_topic, CameraInfo))
 
     def _update_rgb(self, image):
         self.rgb_image = image
@@ -72,6 +73,9 @@ class BoltController(object):
         target.pose.orientation.z = quat[2]
         target.pose.orientation.w = quat[3]
         target.pose.position.z += delta_vert/1000.0
+
+        # SAFETY
+        target.pose.position.z = max(target.pose.position.z, 1.2)
 
         return target
 
